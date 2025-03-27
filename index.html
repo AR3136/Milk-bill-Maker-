@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Milk Billing System</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        body {
+            background-color: #ffffff;
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            max-width: 500px;
+            background: rgb(255, 234, 0);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+        }
+        .btn-custom {
+            background-color: rgb(255, 255, 255);
+            color: rgb(255, 234, 0);
+            border: none;
+        }
+        .btn-custom:hover {
+            background-color: #ffffff;
+        }
+    </style>
+</head>
+<body class="d-flex justify-content-center align-items-center vh-100">
+
+    <div class="container text-center">
+        <h2>Upload Milk Data (Excel File)</h2>
+        <input type="file" id="fileInput" class="form-control">
+        <button class="btn btn-custom mt-2" onclick="uploadFile()">Upload</button>
+        <p id="uploadStatus"></p>
+
+        <h2>Calculate Bill</h2>
+        <input type="text" id="customerName" class="form-control" placeholder="Enter Customer Name">
+        <button class="btn btn-custom mt-2" onclick="calculateBill()">Calculate</button>
+        <p id="result"></p>
+
+        <h2>Send WhatsApp Bill</h2>
+        <input type="text" id="phoneNumber" class="form-control" placeholder="Enter WhatsApp Number (+91)">
+        <button class="btn btn-custom mt-2" onclick="sendWhatsApp()">Send</button>
+        <p id="whatsappStatus"></p>
+    </div>
+
+    <script>
+        let uploadedFilePath = "";
+
+        function uploadFile() {
+            let fileInput = document.getElementById("fileInput").files[0];
+            let formData = new FormData();
+            formData.append("file", fileInput);
+
+            fetch("/upload", { method: "POST", body: formData })
+            .then(response => response.json())
+            .then(data => {
+                if (data.filepath) {
+                    uploadedFilePath = data.filepath;
+                    document.getElementById("uploadStatus").innerText = "File uploaded successfully!";
+                } else {
+                    document.getElementById("uploadStatus").innerText = "Upload failed!";
+                }
+            })
+            .catch(error => console.error(error));
+        }
+
+        function calculateBill() {
+            let customerName = document.getElementById("customerName").value;
+
+            fetch("/calculate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ filepath: uploadedFilePath, customer_name: customerName })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.total_bill !== undefined) {
+                    document.getElementById("result").innerHTML = `
+                        Milk Bill for ${data.customer_name}<br>
+                         Cow Milk: ${data.cow_milk} L <br>
+                         Buffalo Milk: ${data.buffalo_milk} L <br>
+                         Total Bill: ₹${data.total_bill}
+                    `;
+                } else {
+                    document.getElementById("result").innerText = `Error: ${data.error || "Unknown issue"}`;
+                }
+            })
+            .catch(error => console.error(error));
+        }
+
+        function sendWhatsApp() {
+            let phoneNumber = document.getElementById("phoneNumber").value;
+            let message = document.getElementById("result").innerText;
+
+            fetch("/send_whatsapp", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ phone_number: phoneNumber, message: message })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById("whatsappStatus").innerText = data.message || data.error;
+            })
+            .catch(error => console.error(error));
+        }
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
